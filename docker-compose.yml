@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  proxy:
+    build: .
+    image: streaming-enhanced-proxy:latest
+    container_name: streaming-enhanced-proxy
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # Admin dashboard + API
+      - "8080:8080"   # HTTP/HTTPS MITM proxy
+    volumes:
+      - ./certs:/app/certs       # Persistent CA cert
+      - ./data:/app/data         # Per-device settings DB
+      - ./scripts:/app/scripts   # Cached upstream scripts
+    environment:
+      - NODE_ENV=production
+      - ADMIN_PORT=3000
+      - PROXY_PORT=8080
+      - SCRIPTS_DIR=/app/scripts
+      - CERTS_DIR=/app/certs
+      - DATA_DIR=/app/data
+      - ADMIN_ORIGIN=http://streamingenhanced.local
+      # Optional: UPDATE_CRON=0 3 * * *
+    # Uncomment for mDNS / Avahi hostname resolution (Linux only):
+    # network_mode: host
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: mDNS broadcast for streamingenhanced.local
+  # Requires Avahi on the host or a separate container

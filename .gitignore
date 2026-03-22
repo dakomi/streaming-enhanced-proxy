@@ -1,0 +1,10 @@
+node_modules/
+dist/
+certs/certs/
+certs/keys/
+data/
+scripts/*.js
+!scripts/version.json
+*.js.map
+.env
+.env.*

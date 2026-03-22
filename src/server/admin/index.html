@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Enhanced — Admin Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a2e;
+      --accent: #e50914;
+      --accent2: #00d2d3;
+      --text: #e0e0e0;
+      --muted: #888;
+      --border: #333;
+      --success: #2ed573;
+      --warn: #ffa502;
+    }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+    header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { margin: 0; font-size: 1.4rem; color: var(--accent); }
+    header span { color: var(--muted); font-size: 0.9rem; }
+    nav { background: #111; border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; gap: 0; }
+    nav a { color: var(--muted); text-decoration: none; padding: 0.75rem 1.25rem; font-size: 0.9rem; border-bottom: 2px solid transparent; transition: all .2s; }
+    nav a:hover, nav a.active { color: var(--text); border-bottom-color: var(--accent); }
+    main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    .section { display: none; }
+    .section.active { display: block; }
+    h2 { color: var(--accent2); margin-top: 0; font-size: 1.2rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+    .card-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 0.5rem; }
+    .card-value { font-size: 1.6rem; font-weight: 700; }
+    .card-value.ok { color: var(--success); }
+    .card-value.warn { color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #222; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    button { background: var(--accent); color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: opacity .2s; }
+    button:hover { opacity: 0.85; }
+    button.secondary { background: #333; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .badge.green { background: rgba(46,213,115,.15); color: var(--success); }
+    .badge.yellow { background: rgba(255,165,2,.15); color: var(--warn); }
+    .log { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; color: var(--muted); white-space: pre-wrap; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.5rem; }
+    input[type=text] { background: #222; color: var(--text); border: 1px solid var(--border); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.9rem; }
+    a.link { color: var(--accent2); text-decoration: none; }
+    a.link:hover { text-decoration: underline; }
+    .cert-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    pre { background: #111; border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.8rem; color: #b0c4de; }
+    #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--success); color: #000; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; display: none; z-index: 1000; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🎬 Streaming Enhanced Proxy</h1>
+  <span id="proxy-status">Loading…</span>
+</header>
+<nav>
+  <a href="#" class="active" data-section="overview">Overview</a>
+  <a href="#" data-section="scripts">Scripts</a>
+  <a href="#" data-section="devices">Devices</a>
+  <a href="#" data-section="cert">CA Certificate</a>
+  <a href="#" data-section="setup">Setup Guide</a>
+</nav>
+<main>
+
+  <!-- OVERVIEW -->
+  <div class="section active" id="overview">
+    <h2>Status Overview</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Proxy Status</div>
+        <div class="card-value ok" id="ov-proxy">Running</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Script Version</div>
+        <div class="card-value" id="ov-version">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Last Update Check</div>
+        <div class="card-value" id="ov-lastcheck" style="font-size:1rem">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Known Devices</div>
+        <div class="card-value" id="ov-devices">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <div class="section" id="scripts">
+    <h2>Script Management</h2>
+    <div class="actions">
+      <button id="btn-update">🔄 Update Scripts Now</button>
+      <span id="update-status" style="color:var(--muted);font-size:.9rem"></span>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      <div style="display:flex;gap:2rem;flex-wrap:wrap">
+        <div><div class="card-label">Current Version</div><div id="sc-version">—</div></div>
+        <div><div class="card-label">Last Updated</div><div id="sc-updated">—</div></div>
+        <div><div class="card-label">Last Check</div><div id="sc-check">—</div></div>
+      </div>
+    </div>
+    <div class="card-label" style="margin-bottom:.5rem">Update Log</div>
+    <div class="log" id="update-log">No updates logged yet.</div>
+  </div>
+
+  <!-- DEVICES -->
+  <div class="section" id="devices">
+    <h2>Known Devices</h2>
+    <div class="actions">
+      <button class="secondary" id="btn-refresh-devices">↻ Refresh</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Device ID</th>
+          <th>Friendly Name</th>
+          <th>Last IP</th>
+          <th>Last Seen</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="devices-tbody">
+        <tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CERT -->
+  <div class="section" id="cert">
+    <h2>CA Certificate</h2>
+    <div class="cert-box">
+      <p>Install the local CA certificate on each device so HTTPS interception works without browser warnings.</p>
+      <a class="link" href="/ca.crt" download="streaming-enhanced-proxy-ca.crt">
+        <button>⬇ Download CA Certificate</button>
+      </a>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="section" id="setup">
+    <h2>Setup Guide</h2>
+    <p>Point your browser or router's proxy to <strong>this server's IP : 8080</strong>.</p>
+
+    <h3>Installing the CA Certificate</h3>
+
+    <h4>Windows</h4>
+    <pre>1. Download ca.crt from the link above.
+2. Double-click the file → "Install Certificate"
+3. Store Location: Local Machine → Next
+4. "Place all certificates in the following store" → Browse → "Trusted Root Certification Authorities"
+5. Finish → Yes</pre>
+
+    <h4>macOS</h4>
+    <pre>1. Download ca.crt and open it.
+2. Keychain Access opens → add to "System" keychain.
+3. Find "Streaming Enhanced Proxy CA" → Get Info → Trust → "Always Trust".</pre>
+
+    <h4>Android</h4>
+    <pre>1. Download ca.crt to your phone.
+2. Settings → Security → Install from storage → select ca.crt.
+3. Name it "Streaming Enhanced Proxy CA" → VPN and apps.</pre>
+
+    <h4>iOS / iPadOS</h4>
+    <pre>1. Open http://&lt;pi-ip&gt;:3000/ca.crt in Safari.
+2. Settings → Profile Downloaded → Install.
+3. Settings → General → About → Certificate Trust Settings → enable trust.</pre>
+
+    <h4>Samsung / LG / Vidaa Smart TV</h4>
+    <pre>Smart TVs vary by manufacturer. The recommended approach is to configure
+your router to intercept traffic at network level, and install the CA on
+your router (e.g., OpenWrt: copy ca.crt to /etc/ssl/certs/ and run update-ca-certificates).</pre>
+
+    <h3>Browser Proxy Configuration</h3>
+    <pre>HTTP Proxy:  &lt;this-server-ip&gt;:8080
+HTTPS Proxy: &lt;this-server-ip&gt;:8080</pre>
+
+    <h3>Router / iptables (Transparent Proxy)</h3>
+    <pre># On the router, redirect HTTP and HTTPS to the proxy:
+iptables -t nat -A PREROUTING -p tcp --dport 80  -j DNAT --to &lt;pi-ip&gt;:8080
+iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to &lt;pi-ip&gt;:8080</pre>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Navigation
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    const sec = a.dataset.section;
+    document.getElementById(sec).classList.add('active');
+    if (sec === 'devices') loadDevices();
+    if (sec === 'scripts') loadScripts();
+  });
+});
+
+function toast(msg, ok=true) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.background = ok ? 'var(--success)' : '#e74c3c';
+  t.style.color = ok ? '#000' : '#fff';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function fmt(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString();
+}
+
+// Load overview
+async function loadOverview() {
+  try {
+    const [status, devices] = await Promise.all([
+      fetch('/api/update-status').then(r=>r.json()),
+      fetch('/api/devices').then(r=>r.json()),
+    ]);
+    $('ov-version').textContent = status.currentVersion ?? '—';
+    $('ov-lastcheck').textContent = fmt(status.lastCheck);
+    $('ov-devices').textContent = devices.length;
+  } catch(e) {
+    $('ov-proxy').textContent = 'Error';
+    $('ov-proxy').className = 'card-value warn';
+  }
+}
+
+// Load scripts tab
+async function loadScripts() {
+  const s = await fetch('/api/update-status').then(r=>r.json());
+  $('sc-version').textContent = s.currentVersion ?? '—';
+  $('sc-updated').textContent = fmt(s.updatedAt);
+  $('sc-check').textContent = fmt(s.lastCheck);
+}
+
+// Update scripts button
+$('btn-update').addEventListener('click', async () => {
+  $('btn-update').disabled = true;
+  $('update-status').textContent = 'Updating…';
+  try {
+    const r = await fetch('/api/update-scripts', {method:'POST'}).then(r=>r.json());
+    const msg = r.updated ? `Updated to ${r.version}` : `Already at ${r.version}`;
+    $('update-log').textContent = `[${new Date().toISOString()}] ${msg}\n` + $('update-log').textContent;
+    $('update-status').textContent = msg;
+    toast(msg);
+    loadScripts();
+  } catch(e) {
+    $('update-status').textContent = 'Update failed';
+    toast('Update failed', false);
+  } finally {
+    $('btn-update').disabled = false;
+  }
+});
+
+// Load devices table
+async function loadDevices() {
+  const tbody = $('devices-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr>';
+  const devices = await fetch('/api/devices').then(r=>r.json());
+  if (!devices.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No devices seen yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = devices.map(d => `
+    <tr>
+      <td><code style="font-size:.8rem">${d.id}</code></td>
+      <td>
+        <input type="text" value="${d.friendly_name || ''}" placeholder="(unnamed)"
+          onblur="renameDevice('${d.id}', this.value)" style="width:140px">
+      </td>
+      <td>${d.last_seen_ip || '—'}</td>
+      <td>${fmt(d.last_seen_at)}</td>
+      <td>
+        <a class="link" href="/settings?device=${d.id}" target="_blank">Settings ↗</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function renameDevice(id, name) {
+  await fetch(`/api/devices/${id}`, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({friendly_name:name})
+  });
+  toast('Name saved');
+}
+
+$('btn-refresh-devices').addEventListener('click', loadDevices);
+
+loadOverview();
+</script>
+</body>
+</html>

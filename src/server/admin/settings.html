@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Enhanced — Settings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a2e;
+      --accent: #e50914;
+      --accent2: #00d2d3;
+      --text: #e0e0e0;
+      --muted: #888;
+      --border: #333;
+      --success: #2ed573;
+    }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+    header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 2rem; }
+    header h1 { margin: 0; font-size: 1.3rem; color: var(--accent); }
+    header p { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--muted); }
+    main { padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+    .service-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.25rem; overflow: hidden; }
+    .service-header { padding: 0.9rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+    .service-header h2 { margin: 0; font-size: 1rem; }
+    .service-header .chevron { color: var(--muted); transition: transform .2s; }
+    .service-header.open .chevron { transform: rotate(180deg); }
+    .service-body { display: none; padding: 0 1.25rem 1.25rem; }
+    .service-body.open { display: block; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid #222; }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 0.95rem; }
+    .toggle-desc { font-size: 0.75rem; color: var(--muted); }
+    /* Toggle switch */
+    .switch { position: relative; width: 46px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #333; border-radius: 24px; transition: background .2s; cursor: pointer; }
+    .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    input:checked + .slider { background: var(--accent2); }
+    input:checked + .slider::before { transform: translateX(22px); }
+    .number-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid #222; }
+    .number-row:last-child { border-bottom: none; }
+    .number-row input[type=number] { background: #222; color: var(--text); border: 1px solid var(--border); padding: 0.3rem 0.5rem; border-radius: 6px; width: 80px; font-size: 0.9rem; }
+    .save-bar { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; gap: 1rem; align-items: center; }
+    button { background: var(--accent); color: #fff; border: none; padding: 0.7rem 1.75rem; border-radius: 8px; cursor: pointer; font-size: 1rem; min-height: 48px; }
+    button:hover { opacity: 0.85; }
+    #save-status { color: var(--muted); font-size: 0.9rem; }
+    select { background: #222; color: var(--text); border: 1px solid var(--border); padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🎬 Streaming Enhanced — Device Settings</h1>
+  <p id="device-label">Loading…</p>
+</header>
+<main id="settings-main">
+  <p style="color:var(--muted)">Loading settings…</p>
+</main>
+<div class="save-bar">
+  <button id="btn-save">💾 Save Settings</button>
+  <span id="save-status"></span>
+</div>
+
+<script>
+// Resolve device ID: ?device= param, localStorage, or cookie
+function getDeviceId() {
+  const params = new URLSearchParams(location.search);
+  let id = params.get('device');
+  if (id) { try { localStorage.setItem('__se_device_id', id); } catch(e){} return id; }
+  try { id = localStorage.getItem('__se_device_id'); } catch(e){}
+  if (id) return id;
+  try { id = crypto.randomUUID(); localStorage.setItem('__se_device_id', id); } catch(e){ id = 'anonymous'; }
+  return id;
+}
+const DEVICE_ID = getDeviceId();
+document.getElementById('device-label').textContent = 'Device: ' + DEVICE_ID;
+
+const SCHEMA = {
+  Amazon: {
+    label: '🛒 Amazon Prime Video',
+    bools: ['skipIntro','skipCredits','watchCredits','selfAd','skipAd','speedSlider','filterPaid','continuePosition','showRating','xray','improveUI'],
+  },
+  Netflix: {
+    label: '🍿 Netflix',
+    bools: ['skipIntro','skipRecap','skipCredits','watchCredits','skipBlocked','skipAd','speedSlider','profile','showRating','removeGames','hideTitles'],
+  },
+  Disney: {
+    label: '✨ Disney+ / Hotstar / Star+',
+    bools: ['skipIntro','skipCredits','watchCredits','skipAd','speedSlider','showRating','selfAd','hideTitles'],
+  },
+  Crunchyroll: {
+    label: '🍜 Crunchyroll',
+    bools: ['skipIntro','skipCredits','skipAfterCredits','speedSlider','releaseCalendar','profile','bigPlayer','filterQueued','filterDuplicates'],
+    extras: [{key:'dubLanguage', label:'Dub Language', type:'text'}],
+  },
+  HBO: {
+    label: '📺 Max / HBO Max',
+    bools: ['skipIntro','skipCredits','watchCredits','speedSlider','showRating'],
+  },
+  Paramount: {
+    label: '⭐ Paramount+',
+    bools: ['skipIntro','skipCredits','watchCredits','speedSlider','showRating','skipAd'],
+  },
+  Video: {
+    label: '🎥 Video (All Services)',
+    bools: ['playOnFullScreen','epilepsy','userAgent','doubleClick','scrollVolume','showYear','dimLowRatings'],
+  },
+  General: {
+    label: '⚙️ General',
+    bools: [],
+    numbers: ['sliderSteps','sliderMin','sliderMax','Crunchyroll_skipTimeout'],
+  },
+};
+
+let currentSettings = {};
+
+async function loadSettings() {
+  const r = await fetch(`/api/settings/${DEVICE_ID}`);
+  currentSettings = await r.json();
+  renderAll();
+}
+
+function renderAll() {
+  const main = document.getElementById('settings-main');
+  main.innerHTML = '';
+  for (const [svc, def] of Object.entries(SCHEMA)) {
+    const svcSettings = currentSettings[svc] || {};
+    const card = document.createElement('div');
+    card.className = 'service-card';
+    const header = document.createElement('div');
+    header.className = 'service-header';
+    header.innerHTML = `<h2>${def.label}</h2><span class="chevron">▼</span>`;
+    const body = document.createElement('div');
+    body.className = 'service-body open';
+
+    // Boolean toggles
+    for (const key of (def.bools || [])) {
+      const val = svcSettings[key] ?? false;
+      const row = document.createElement('div');
+      row.className = 'toggle-row';
+      row.innerHTML = `
+        <div>
+          <div class="toggle-label">${formatKey(key)}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" data-svc="${svc}" data-key="${key}" ${val ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>`;
+      body.appendChild(row);
+    }
+
+    // Number inputs
+    for (const key of (def.numbers || [])) {
+      const val = svcSettings[key] ?? 0;
+      const row = document.createElement('div');
+      row.className = 'number-row';
+      row.innerHTML = `
+        <div class="toggle-label">${formatKey(key)}</div>
+        <input type="number" data-svc="${svc}" data-key="${key}" value="${val}" step="0.25" min="0">`;
+      body.appendChild(row);
+    }
+
+    // Text extras
+    for (const extra of (def.extras || [])) {
+      const val = svcSettings[extra.key] ?? '';
+      const row = document.createElement('div');
+      row.className = 'number-row';
+      row.innerHTML = `
+        <div class="toggle-label">${extra.label}</div>
+        <input type="text" data-svc="${svc}" data-key="${extra.key}" value="${val}" style="width:120px;background:#222;color:var(--text);border:1px solid var(--border);padding:.3rem .5rem;border-radius:6px">`;
+      body.appendChild(row);
+    }
+
+    header.addEventListener('click', () => {
+      header.classList.toggle('open');
+      body.classList.toggle('open');
+    });
+
+    card.appendChild(header);
+    card.appendChild(body);
+    main.appendChild(card);
+  }
+}
+
+function formatKey(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+}
+
+function collectSettings() {
+  const out = {};
+  document.querySelectorAll('[data-svc][data-key]').forEach(el => {
+    const svc = el.dataset.svc;
+    const key = el.dataset.key;
+    if (!out[svc]) out[svc] = {};
+    if (el.type === 'checkbox') {
+      out[svc][key] = el.checked;
+    } else if (el.type === 'number') {
+      out[svc][key] = parseFloat(el.value) || 0;
+    } else {
+      out[svc][key] = el.value;
+    }
+  });
+  return out;
+}
+
+document.getElementById('btn-save').addEventListener('click', async () => {
+  const data = collectSettings();
+  const status = document.getElementById('save-status');
+  status.textContent = 'Saving…';
+  try {
+    const r = await fetch(`/api/settings/${DEVICE_ID}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    currentSettings = await r.json();
+    status.textContent = '✓ Saved! Reload a streaming page for changes to take effect.';
+    status.style.color = 'var(--success)';
+    setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 5000);
+  } catch(e) {
+    status.textContent = '✗ Save failed: ' + e.message;
+    status.style.color = '#e74c3c';
+  }
+});
+
+loadSettings();
+</script>
+</body>
+</html>
